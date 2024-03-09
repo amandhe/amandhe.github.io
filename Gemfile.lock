@@ -126,8 +126,8 @@ PLATFORMS
 
 DEPENDENCIES
   http_parser.rb (~> 0.6.0)
-  jekyll
-  jekyll-feed
+  jekyll (~> 4.3.3)
+  jekyll-feed (~> 0.12)
   jekyll-remote-theme
   minima (~> 2.5)
   tzinfo (>= 1, < 3)
