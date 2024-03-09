@@ -152,17 +152,16 @@ Logging works in streaming mode (setting `stream=True` in the chat completion `c
 
 Loggers can be nested arbitrarily deep within other loggers. For example, in an agentic system where one agent instantiates another agent
 
-{% highlight python %}
+```python
 def other_agent():
-with init_logger() as logger: # make some LLM calls
-print(logger.logs) # will only include LLM calls made by other_agent
+  with init_logger() as logger: # make some LLM calls
+    print(logger.logs) # will only include LLM calls made by other_agent
 
 def agent():
-with init_logger() as logger: # make some LLM calls
-other_agent()
-print(logger.logs) # will only include LLM calls made by agent, not other_agent
-
-{% endhighlight %}
+  with init_logger() as logger: # make some LLM calls
+    other_agent()
+    print(logger.logs) # will only include LLM calls made by agent, not other_agent
+```
 
 **Compatible with langchain, etc.**
 

@@ -3,8 +3,9 @@
 # To modify the layout, see https://jekyllrb.com/docs/themes/#overriding-theme-defaults
 
 layout: home
+title: Writing
 ---
 
-Theoretical computer scientist, ML engineer and startup founder learning and building in public.
+Learning and building in public. Writing about it as I go.
 
-Also at [amandhesi.net](https://amandhesi.net/about/) and [@amansplaining](https://x.com/amansplaining)
+Also at [amandhesi.net](https://amandhesi.net/) and [@amansplaining](https://x.com/amansplaining)

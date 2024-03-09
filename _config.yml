@@ -20,7 +20,7 @@
 
 title: "Amansplaining - yet another AI blog"
 author: "Aman Dhesi"
-description: "Learning and building in public" # This will show up in places like twitter, linkedin, etc, if you share your sites url as a post.
+description: "Aman Dhesi - Learning and building in public" # This will show up in places like twitter, linkedin, etc, if you share your sites url as a post.
 
 # email: your-email@example.com
 baseurl: "" # the subpath of your site, e.g. /blog
@@ -33,7 +33,18 @@ instagram_username: "amandhesi"
 # Build settings
 theme: minima
 plugins:
+  - jekyll-remote-theme
   - jekyll-feed
+
+remote_theme: jekyll/minima
+
+minima:
+  skin: dark
+  social_links:
+    - { platform: github, user_url: "https://github.com/amandhe" }
+    - { platform: instagram, user_url: "https://instagram.com/amandhesi/" }
+    - { platform: linkedin, user_url: "https://linkedin.com/in/amandhesi" }
+    - { platform: twitter, user_url: "https://x.com/amansplaining" }
 # Exclude from processing.
 # The following items will not be processed, by default.
 # Any item listed under the `exclude:` key here will be automatically added to
