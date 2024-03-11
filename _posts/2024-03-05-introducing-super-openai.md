@@ -171,13 +171,12 @@ def agent():
 
 Let's walk through the process of building a simple Q&A bot to answer questions over Tesla's 2023 10-K annual filing. We'll start with [this code](https://python.langchain.com/docs/use_cases/question_answering/quickstart) from the Langchain docs and make some minor changes to make it work with PDFs. The final code is available as a [GitHub gist](https://gist.github.com/amandhe/d33fcf44aa6a2a77c00c014bf25405bd).
 
-Now we'll ask some questions. I use the following snippet to log all LLM requests using `superopenai` and print out the cost and latency
+Now we'll ask some questions. I use the following snippet to log all LLM requests using `superopenai` and print out the cost:
 
 ```python
 with init_logger() as logger:
   print(rag_chain.invoke(question))
   print("Cost: $", logger.summary_statistics().cost)
-  print("Latency: ", logger.summary_statistics().total_latency)
 ```
 
 We'll ask it the following question:
