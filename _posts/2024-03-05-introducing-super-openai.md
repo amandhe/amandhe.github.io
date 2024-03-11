@@ -7,7 +7,7 @@ categories: superopenai llm python openai
 
 _TL;DR: [`superopenai`](https://github.com/villagecomputing/superopenai) is a minimal library for logging and caching LLM requests and responses during development, enabling visibility and rapid iteration._
 
-[**Star us!**](https://github.com/villagecomputing/superopenai)
+[**See superopenai on Github**](https://github.com/villagecomputing/superopenai)
 
 ## Visibility is all you need
 
