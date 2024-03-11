@@ -167,55 +167,84 @@ def agent():
 
 `superopenai` is fully compatible with `langchain`, `llama-index`, `instructor`, `guidance`, `DSpy` and most other third party libraries. Just call `init_superopenai` before using any other library.
 
-## Example: Building a RAG pipeline with langchain
+## Example: Building and testing a RAG pipeline with langchain
 
-Let's walk through the process of building a simple Q&A bot to answer questions over Tesla's 2023 10-K annual filing. We'll use [this code](https://python.langchain.com/docs/use_cases/question_answering/quickstart) from the Langchain docs with some minor changes to work with PDFs rather than websited.
+Let's walk through the process of building a simple Q&A bot to answer questions over Tesla's 2023 10-K annual filing. We'll start with [this code](https://python.langchain.com/docs/use_cases/question_answering/quickstart) from the Langchain docs and make some minor changes to make it work with PDFs. The final code is available as a [GitHub gist](https://gist.github.com/amandhe/d33fcf44aa6a2a77c00c014bf25405bd).
+
+Now we'll ask some questions. I use the following snippet to log all LLM requests using `superopenai` and print out the cost and latency
 
 ```python
-from superopenai import init_superopenai, init_logger
-init_superopenai()
+with init_logger() as logger:
+  print(rag_chain.invoke(question))
+  print("Cost: $", logger.summary_statistics().cost)
+  print("Latency: ", logger.summary_statistics().total_latency)
+```
 
-from langchain_community.vectorstores import Chroma
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader
+We'll ask it the following question:
 
-CHUNKSIZE = 1000
-CHUNKOVERLAP = 200
-MODEL = "gpt-4-1106-preview"
-K = 10
+> in what ways does the inflation reduction act (IRA) benefit Tesla? give me specific numbers and facts. return 5 bullet points maximum
 
-loader = PyPDFLoader("./tesla_10k.pdf")
-docs = loader.load()
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNKSIZE, chunk_overlap=CHUNKOVERLAP)
-splits = text_splitter.split_documents(docs)
-vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
-retriever = vectorstore.as_retriever(search_kwargs={"k": K})
-prompt = """
-You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
-Question: {question}
-Context: {context}
-Answer:
-"""
-llm = ChatOpenAI(model_name="MODEL", temperature=0)
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+And we get this response:
+
+> - Qualifying Tesla customers may receive up to $7,500 in federal tax credits for the purchase of qualified electric vehicles in the U.S. through 2032.
+> - The IRA promotes clean energy, electric vehicles, battery, and energy storage manufacture or purchase, which aligns with Tesla's business model.
+> - The IRA is expected to materially affect Tesla's consolidated financial statements, potentially reducing material costs in their consolidated statement of operations.
+> - Tesla may benefit from incentives provided to manufacturers who assemble domestically and have local suppliers, which could apply to Tesla's operations.
+> - The impact of the IRA on Tesla's financials was primarily a reduction of material costs for the year ended December 31, 2023, indicating a financial benefit from the act.
+
+> Cost: $ 0.0187
+
+On first glance this seems pretty good. The response mentioned the $7500 tax credit some Tesla vehicles qualify for. However, it didn't specifically mention that Tesla has a major energy storage business that benefits from the IRA. It also didn't mention the precise amount that energy storage benefits from IRA.
+
+Now let's change `K` to `20`, re-run the code and ask the same question. This time we get:
+
+> - Qualifying Tesla customers may receive up to $7,500 in federal tax credits for the purchase of qualified electric vehicles in the U.S. through 2032.
+> - The IRA includes incentives to promote clean energy, electric vehicles, battery, and energy storage manufacture or purchase, which could reduce material costs in Tesla's consolidated statement of operations.
+> - The IRA provides benefits to manufacturers who assemble domestically and have local suppliers, which may apply to Tesla's operations.
+> - Standalone energy storage technology is eligible for a tax credit under the IRA, which could benefit Tesla's energy storage solutions.
+> - Tesla may experience a margin benefit from IRA manufacturing credits earned, although specific numbers regarding this benefit are not provided in the context.
+
+> Cost: $ 0.03224
+
+This time the response did include a bullet point about energy storage! However, it still didn't mention the precise subsidy the IRA provides for energy storage. I know that Tesla's energy storage is eligible for between 6% and 50% of the expenses in tax credits. Can we get the model to include that in its response, without specifically asking for it? Note that the cost almost doubled with twice as many input chunks.
+
+One thing we can do is to try Langchain's `MultiQueryRetriever` which expands the input question and asks it 3 different ways (using an LLM request).
+
+```python
+from langchain.retrievers.multi_query import MultiQueryRetriever
+retriever_from_llm = MultiQueryRetriever.from_llm(
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 20}), llm=llm
+)
 rag_chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    {"context": retriever_from_llm | format_docs, "question": RunnablePassthrough()}
     | prompt
     | llm
     | StrOutputParser()
 )
 ```
 
-Now, I ask the question `how did regulatory tax credits effect tesla's financials for the year compared to last year?`
+With this chain and the same question, we get:
 
-```python
-rag_chain.invoke("how did regulatory tax credits effect tesla's financials for the year compared to last year?")
-# Response: "Regulatory tax credits had a minor positive effect on Tesla's financials in 2023 compared to 2022. Automotive regulatory credits revenue increased by $14 million, or 1%, from $1,776 million in 2022 to $1,790 million in 2023. This increase is relatively small in the context of Tesla's overall revenue growth."
-```
+> - Qualifying Tesla customers may receive up to $7,500 in federal tax credits for the purchase of qualified electric vehicles in the U.S. through 2032.
+> - The IRA includes incentives to promote clean energy, electric vehicles, battery, and energy storage manufacture or purchase, which could reduce material costs in Tesla's consolidated statement of operations.
+> - The IRA provides tax credits for standalone energy storage technology, which could benefit Tesla's energy storage products.
+> - The IRA includes multiple incentives that are expected to materially affect Tesla's consolidated financial statements, although specific impacts are subject to future guidance releases.
+> - Tesla's costs of revenue were positively impacted by the IRA manufacturing credits earned during the current year, contributing to a reduction in material costs and lower manufacturing costs from better fixed cost absorption.
+>   (Note: The provided context does not contain specific numbers regarding the exact financial impact of the IRA on Tesla's financial statements beyond the $7,500 tax credit for consumers and the general statement about the positive impact on material costs and manufacturing credits.)
+
+> Cost: $ 0.05087
+
+Still no luck, even though the cost went up another 50%. One last try, let's double the chunk size to `1000`, overlap to `200` and number of chunks to `40`
+
+> - Qualifying Tesla customers may receive up to $7,500 in federal tax credits for the purchase of qualified electric vehicles in the U.S. through 2032.
+> - Standalone energy storage technology is eligible for a tax credit between 6% and 50% of qualified expenditures, which may benefit Tesla customers or Tesla directly if they own the systems.
+> - Solar energy systems are eligible for a tax credit between 6% and 70% of qualified commercial or residential expenditures, which may benefit Tesla customers or Tesla directly if they own the systems.
+> - The IRA incentives are expected to materially affect Tesla's consolidated financial statements, primarily as a reduction of material costs in their consolidated statement of operations.
+> - Tesla's business and products are impacted by various government credits, incentives, and policies, which may include benefits to manufacturers who assemble domestically and have local suppliers.
+
+> Cost: $ 0.11791
+
+Aha! This time it worked. Notice that cost more than doubled from the previous attempt, but this is definitely the best answer yet. This is the cost-accuracy tradeoff we discussed above - more on that soon ;)
 
 ## Contributing
 
